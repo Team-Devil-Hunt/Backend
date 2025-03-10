@@ -19,7 +19,7 @@ docker-compose up --build
 2. run uvicorn
 ```python
 alembic upgrade head
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app --reload
 ```
 
 
