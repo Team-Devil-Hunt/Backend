@@ -16,10 +16,9 @@ pip3 install -r requirements.txt
 ```python
 docker-compose up --build
 ```
-2. run uvicorn
-```python
-alembic upgrade head
-uvicorn main:app --reload
+2. run migration and start server
+```bash
+alembic upgrade head && uvicorn main:app --reload
 ```
 
 
