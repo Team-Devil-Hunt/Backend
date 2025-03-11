@@ -39,13 +39,11 @@ async def get_user_from_session(
                 )
                 permissions.append(permission.name)
 
-            # Room data removed as Room model is no longer available
-            roomResponse = []
+         
 
             return {
                 "id": user.id,
                 "name": user.name,
                 "email": user.email,
                 "role": {"id": role.id, "name": role.name, "permissions": permissions},
-                "room": roomResponse,
             }

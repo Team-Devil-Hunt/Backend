@@ -65,7 +65,6 @@ async def all_users(
             "created_at": user.created_at.strftime(
                 "%Y-%m-%d %H:%M:%S"
             ),  # Convert datetime to string
-            "rooms": [],
         }
 
         # Append the user response to the list
