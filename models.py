@@ -8,6 +8,46 @@ from sqlalchemy import Table, Enum
 from sqlalchemy.dialects.postgresql import JSON
 from enum import Enum as PyEnum
 
+class EquipmentCategory(Base):
+    __tablename__ = 'equipment_categories'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    icon = Column(String, nullable=True)
+    description = Column(String, nullable=True)
+    equipment = relationship('Equipment', back_populates='category')
+
+class Equipment(Base):
+    __tablename__ = 'equipment'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    category_id = Column(Integer, ForeignKey('equipment_categories.id'), nullable=False)
+    specifications = Column(String, nullable=True)
+    quantity = Column(Integer, nullable=False)
+    available = Column(Integer, nullable=False)
+    image = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    requires_approval = Column(Boolean, nullable=False, default=False)
+    category = relationship('EquipmentCategory', back_populates='equipment')
+    bookings = relationship('EquipmentBooking', back_populates='equipment')
+
+class EquipmentBooking(Base):
+    __tablename__ = 'equipment_bookings'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    equipment_id = Column(Integer, ForeignKey('equipment.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
+    user_name = Column(String, nullable=False)
+    user_role = Column(String, nullable=False)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    purpose = Column(String, nullable=True)
+    status = Column(String, nullable=False)
+    created_at = Column(DateTime, nullable=False)
+    updated_at = Column(DateTime, nullable=False)
+    rejection_reason = Column(String, nullable=True)
+    equipment = relationship('Equipment', back_populates='bookings')
+    user = relationship('User', back_populates='bookings')
+
 class EventType(str, PyEnum):
     SEMINAR = 'seminar'
     WORKSHOP = 'workshop'
@@ -121,6 +161,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     role = relationship("Role", back_populates="users")
+    bookings = relationship('EquipmentBooking', back_populates='user')
 
 
 
