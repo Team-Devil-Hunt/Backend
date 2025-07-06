@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
 
-from router import auth, user, role, admissions, awards, event
+from router import auth, user, role, admissions, awards, event, faculty
 
 
 app = FastAPI()
@@ -32,9 +32,8 @@ app.include_router(user.router)
 
 app.include_router(role.router)
 app.include_router(event.router)
-
 app.include_router(admissions.router)
+app.include_router(awards.router)
+app.include_router(faculty.router)
 
 app.include_router(awards.router)
-
-

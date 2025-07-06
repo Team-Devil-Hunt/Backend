@@ -7,6 +7,7 @@ from sqlalchemy import Float
 from sqlalchemy import Table, Enum
 from sqlalchemy.dialects.postgresql import JSON
 from enum import Enum as PyEnum
+from sqlalchemy import Text
 
 class EventType(str, PyEnum):
     SEMINAR = 'seminar'
@@ -177,5 +178,41 @@ class ForgotPassword(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     token = Column(String, nullable=False)
     expires = Column(Float, nullable=False)
+
+
+class FacultyDesignation(str, PyEnum):
+    PROFESSOR = "Professor"
+    ASSOCIATE_PROFESSOR = "Associate Professor"
+    ASSISTANT_PROFESSOR = "Assistant Professor"
+    LECTURER = "Lecturer"
+
+
+class Faculty(Base):
+    __tablename__ = "faculty"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    designation = Column(Enum(FacultyDesignation), nullable=False)
+    department = Column(String, nullable=False)
+    expertise = Column(JSON, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    phone = Column(String, nullable=True)
+    office = Column(String, nullable=True)
+    image = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+    publications = Column(Integer, default=0)
+    experience = Column(Integer, default=0)  # years of experience
+    rating = Column(Float, default=0.0)
+    is_chairman = Column(Boolean, default=False)
+    bio = Column(Text, nullable=True)
+    short_bio = Column(Text, nullable=True)
+    education = Column(JSON, nullable=True)  # List of degrees
+    courses = Column(JSON, nullable=True)    # List of courses taught
+    research_interests = Column(JSON, nullable=True)  # List of research interests
+    recent_publications = Column(JSON, nullable=True)  # List of publications
+    awards = Column(JSON, nullable=True)  # List of awards
+    office_hours = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
