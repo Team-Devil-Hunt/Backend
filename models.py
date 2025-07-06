@@ -1,13 +1,12 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from sqlalchemy import Float
 
 from sqlalchemy import Table, Enum
-from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.dialects.postgresql import JSON, ARRAY
 from enum import Enum as PyEnum
-from sqlalchemy import Text
 
 class EquipmentCategory(Base):
     __tablename__ = 'equipment_categories'
@@ -227,6 +226,54 @@ class FacultyDesignation(str, PyEnum):
     ASSISTANT_PROFESSOR = "Assistant Professor"
     LECTURER = "Lecturer"
 
+
+class AnnouncementType(str, PyEnum):
+    ACADEMIC = 'academic'
+    ADMIN = 'admin'
+    GENERAL = 'general'
+
+class PriorityLevel(str, PyEnum):
+    HIGH = 'high'
+    MEDIUM = 'medium'
+    LOW = 'low'
+
+class Announcement(Base):
+    __tablename__ = "announcements"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    date = Column(DateTime, default=datetime.utcnow)
+    type = Column(Enum(AnnouncementType), nullable=False)
+    priority = Column(Enum(PriorityLevel), nullable=False)
+    image = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class QuickLink(Base):
+    __tablename__ = "quick_links"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    href = Column(String, nullable=False)
+    icon = Column(String, nullable=True)
+    category = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class HomeOverview(Base):
+    __tablename__ = "home_overview"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False, default="Welcome to Our Department")
+    description = Column(Text, nullable=True)
+    stats_students = Column(Integer, default=0)
+    stats_faculty = Column(Integer, default=0)
+    stats_programs = Column(Integer, default=0)
+    stats_research = Column(Integer, default=0)
+    hero_image = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class Faculty(Base):
     __tablename__ = "faculty"
