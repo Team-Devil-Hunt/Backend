@@ -10,8 +10,8 @@ from alembic import context
 # Add the project root to the Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Import your models and Base
-from database import Base
+# Import your models and database configuration
+from database import Base, engine, sqlAlchemyDatabaseUrl
 from models import *
 
 # this is the Alembic Config object, which provides
@@ -65,8 +65,8 @@ def run_migrations_online() -> None:
     In this scenario we need to create an Engine
     and associate a connection with the context.
     """
-    # Import database URL from your configuration
-    from database import SQLALCHEMY_DATABASE_URL, engine
+    # Use the database engine from database.py
+    from database import engine
     
     connectable = engine
     
