@@ -33,6 +33,24 @@ class AdmissionFAQ(Base):
     answer = Column(String, nullable=False)
     category = Column(String, nullable=False)
 
+class Award(Base):
+    __tablename__ = "awards"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    details = Column(String, nullable=True)
+    recipient = Column(String, nullable=False)
+    recipient_type = Column(String, nullable=False)  # 'faculty' | 'student'
+    year = Column(Integer, nullable=False)
+    type = Column(String, nullable=False)  # 'award' | 'grant' | ...
+    organization = Column(String, nullable=True)
+    amount = Column(Integer, nullable=True)
+    department = Column(String, nullable=True)
+    duration = Column(String, nullable=True)
+    categories = Column(JSON, nullable=True)
+    publications = Column(JSON, nullable=True)
+    link = Column(String, nullable=True)
+
 
 class Session(Base):
     __tablename__ = "sessions"
