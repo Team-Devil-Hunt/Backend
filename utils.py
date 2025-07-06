@@ -7,6 +7,7 @@ import ssl
 import smtplib
 from config import settings
 
+
 pwdContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
