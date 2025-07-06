@@ -9,8 +9,6 @@ from dependencies import get_user_from_session
 from models import User, Session as SessionModel
 from fastapi.responses import JSONResponse
 from datetime import datetime
-from Crypto.Cipher import AES
-from Crypto.Util.Padding import pad
 import binascii
 import os
 import itertools
