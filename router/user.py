@@ -13,7 +13,6 @@ from typing import List
 from middleware import permission_required
 from models import Role, RolePermission, Permission
 
-
 router = APIRouter(
     prefix="/api/user",
     tags=["user"],
@@ -97,7 +96,7 @@ async def create_user(
         id=latest_user_id + 1,
         name=userRequest.name,
         email=userRequest.email,
-        password=utils.hash(userRequest.password),
+        password=utils.hash(userRequest.password),  # BAD: encrypted, not hashed
         role_id=userRequest.role_id,  # role id from path parameter
         # 0 - > ADMIN
         # 1 - > CHAIRMAN
