@@ -4,9 +4,10 @@ from typing import List, Optional, Dict, Any
 from enum import Enum
 from pydantic import BaseModel, Field, HttpUrl
 from datetime import datetime
-
-from models import Faculty, FacultyDesignation
+from models import User, Faculty, FacultyDesignation
 import database
+
+from middleware import permission_required
 
 router = APIRouter(
     prefix="/api/faculty",
@@ -22,22 +23,27 @@ class FacultyDesignationEnum(str, Enum):
     LECTURER = "Lecturer"
 
 class FacultyBase(BaseModel):
-    name: str
     designation: FacultyDesignationEnum
     department: str
     expertise: List[str]
-    email: str
-    phone: Optional[str] = None
     office: Optional[str] = None
     image: Optional[str] = None
     website: Optional[str] = None
     publications: int = 0
     experience: int = 0
+    rating: float = 0.0
     is_chairman: bool = False
     bio: Optional[str] = None
+    short_bio: Optional[str] = None
     education: Optional[List[str]] = None
     courses: Optional[List[str]] = None
     research_interests: Optional[List[str]] = None
+    recent_publications: Optional[List[dict]] = None
+    awards: Optional[List[str]] = None
+    office_hours: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 class FacultyCreate(FacultyBase):
     pass
@@ -48,24 +54,63 @@ class Publication(BaseModel):
     year: int
     doi: Optional[str] = None
 
+from fastapi import Body
+
 class FacultyResponse(FacultyBase):
     id: int
-    rating: float = 0.0
-    short_bio: Optional[str] = None
-    recent_publications: Optional[List[Publication]] = None
-    awards: Optional[List[str]] = None
-    office_hours: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
     class Config:
-        orm_mode = True
         from_attributes = True
+
+@router.put("/{faculty_id}/update", response_model=FacultyResponse)
+async def update_faculty_profile(
+    faculty_id: int,
+    faculty_update: FacultyBase = Body(...),
+    officer: dict = Depends(permission_required("CREATE_USER")),
+    db: Session = Depends(database.get_db)
+):
+    user = db.query(User).filter(User.id == faculty_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Faculty not found")
+
+    newFaculty = Faculty(
+        id=faculty_id,
+        designation=faculty_update.designation,
+        department=faculty_update.department,
+        expertise=faculty_update.expertise,
+        office=faculty_update.office,
+        image=faculty_update.image,
+        website=faculty_update.website,
+        publications=faculty_update.publications,
+        experience=faculty_update.experience,
+        rating=faculty_update.rating,
+        is_chairman=faculty_update.is_chairman,
+        bio=faculty_update.bio,
+        short_bio=faculty_update.short_bio,
+        education=faculty_update.education,
+        courses=faculty_update.courses,
+        research_interests=faculty_update.research_interests,
+        recent_publications=faculty_update.recent_publications,
+        awards=faculty_update.awards,
+        office_hours=faculty_update.office_hours,
+    )
+    db.add(newFaculty)
+    db.commit()
+    db.refresh(newFaculty)
+    return newFaculty
+
+    
+    
 
 class FacultyListResponse(BaseModel):
     faculty: List[FacultyResponse]
     roles: List[str]
     expertise_areas: List[str]
+
+    class Config:
+        from_attributes = True
 
 # Helper function to convert FacultyDesignation
 # Routes
@@ -89,7 +134,7 @@ async def get_faculty(
         query = query.filter(Faculty.designation == designation)
     
     # Execute query
-    faculty = query.order_by(Faculty.name).all()
+    faculty = query.all()
     
     # Get unique roles and expertise areas for filters
     roles = [d.value for d in FacultyDesignation]
@@ -98,7 +143,14 @@ async def get_faculty(
     expertise_areas = set()
     for f in faculty:
         if f.expertise:
-            expertise_areas.update(f.expertise)
+            if isinstance(f.expertise, list):
+                expertise_areas.update(f.expertise)
+            elif isinstance(f.expertise, str):
+                try:
+                    import json
+                    expertise_areas.update(json.loads(f.expertise))
+                except Exception:
+                    pass
     
     return {
         "faculty": faculty,
@@ -130,21 +182,9 @@ async def get_faculty_profile(
     for column in Faculty.__table__.columns:
         faculty_dict[column.name] = getattr(faculty, column.name)
     
-    # Add the role name
-    faculty_dict["role"] = faculty.designation.value
-    
     # Ensure all required fields have values
-    if faculty_dict.get("recent_publications") is None:
-        faculty_dict["recent_publications"] = []
-    if faculty_dict.get("awards") is None:
-        faculty_dict["awards"] = []
-    if faculty_dict.get("education") is None:
-        faculty_dict["education"] = []
-    if faculty_dict.get("courses") is None:
-        faculty_dict["courses"] = []
-    if faculty_dict.get("research_interests") is None:
-        faculty_dict["research_interests"] = []
-    if faculty_dict.get("expertise") is None:
-        faculty_dict["expertise"] = []
+    for key in ["recent_publications", "awards", "education", "courses", "research_interests", "expertise"]:
+        if faculty_dict.get(key) is None:
+            faculty_dict[key] = []
     
     return {"faculty": faculty_dict}

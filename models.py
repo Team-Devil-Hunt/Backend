@@ -231,13 +231,10 @@ class FacultyDesignation(str, PyEnum):
 class Faculty(Base):
     __tablename__ = "faculty"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    id = Column(Integer,  ForeignKey("users.id"), primary_key=True, index=True, autoincrement=True)
     designation = Column(Enum(FacultyDesignation), nullable=False)
     department = Column(String, nullable=False)
     expertise = Column(JSON, nullable=False)
-    email = Column(String, unique=True, nullable=False)
-    phone = Column(String, nullable=True)
     office = Column(String, nullable=True)
     image = Column(String, nullable=True)
     website = Column(String, nullable=True)
