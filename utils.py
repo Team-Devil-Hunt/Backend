@@ -6,7 +6,7 @@ from email.message import EmailMessage
 import ssl
 import smtplib
 from config import settings
-import binascii
+
 
 pwdContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
