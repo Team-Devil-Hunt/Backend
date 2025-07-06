@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.responses import JSONResponse
-from typing import List
+from typing import List, Optional
 from database import get_db
 from models import AdmissionStats, AdmissionDeadline, AdmissionFAQ, User
 from pydantic import BaseModel
@@ -27,7 +27,10 @@ class AdmissionDeadlineSchema(BaseModel):
     level: str
     date: date
     requirements: str
-    notes: str = None
+    notes: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 class AdmissionFAQSchema(BaseModel):
     question: str
