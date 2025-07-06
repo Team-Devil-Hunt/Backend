@@ -6,8 +6,12 @@ from email.message import EmailMessage
 import ssl
 import smtplib
 from config import settings
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+import binascii
 
 pwdContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 
 logging.basicConfig(level=logging.INFO)
 

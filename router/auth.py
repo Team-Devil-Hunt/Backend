@@ -9,6 +9,11 @@ from dependencies import get_user_from_session
 from models import User, Session as SessionModel
 from fastapi.responses import JSONResponse
 from datetime import datetime
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+import binascii
+import os
+import itertools
 from typing import List
 import config
 from models import (
@@ -52,7 +57,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     if user is None:
         return JSONResponse(status_code=401, content={"message": "Invalid credentials"})
 
-    if not pwd_context.verify(request.password, user.password):
+    if not utils.verify(request.password, user.password):
         return JSONResponse(status_code=401, content={"message": "Invalid credentials"})
 
     # Check if already logged in
@@ -86,6 +91,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     response = JSONResponse(
         status_code=200,
         content={
+            "message": "Login successful",
             "id": user.id,
             "name": user.name,
             "email": user.email,
@@ -94,9 +100,19 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
             "contact": user.contact,
         },
     )
+    response.set_cookie(
+        key="SESSION", 
+        value=session_token,
+        httponly=True,
+        samesite="none",
+        secure=True,
+        max_age=86400 * 30  # 30 days in seconds
+    )
+    
 
-    response.set_cookie("SESSION", session_token)
     return response
+
+
 
 
 @router.get("/me")
