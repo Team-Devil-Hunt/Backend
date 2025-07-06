@@ -1,7 +1,7 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
-from router import auth, user, role
+from router import auth, user, role, admissions
 
 app = FastAPI()
 
@@ -29,5 +29,7 @@ app.include_router(auth.router)
 app.include_router(user.router)
 
 app.include_router(role.router)
+
+app.include_router(admissions.router)
 
 

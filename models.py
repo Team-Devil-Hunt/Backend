@@ -9,6 +9,30 @@ from sqlalchemy import Table
 from sqlalchemy.dialects.postgresql import JSON
 
 
+class AdmissionStats(Base):
+    __tablename__ = "admission_stats"
+    id = Column(Integer, primary_key=True, index=True)
+    next_deadline = Column(String, nullable=False)
+    programs_offered = Column(Integer, nullable=False)
+    application_time = Column(String, nullable=False)
+    acceptance_rate = Column(String, nullable=False)
+
+class AdmissionDeadline(Base):
+    __tablename__ = "admission_deadlines"
+    id = Column(Integer, primary_key=True, index=True)
+    program = Column(String, nullable=False)
+    level = Column(String, nullable=False)  # Undergraduate/Graduate/Postgraduate
+    date = Column(DateTime, nullable=False)
+    requirements = Column(String, nullable=False)
+    notes = Column(String, nullable=True)
+
+class AdmissionFAQ(Base):
+    __tablename__ = "admission_faqs"
+    id = Column(Integer, primary_key=True, index=True)
+    question = Column(String, nullable=False)
+    answer = Column(String, nullable=False)
+    category = Column(String, nullable=False)
+
 
 class Session(Base):
     __tablename__ = "sessions"
