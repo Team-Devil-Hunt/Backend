@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from sqlalchemy import func, case, or_
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime
 
-from models import Announcement, AnnouncementType
+from models import Announcement, AnnouncementType, User, Role
 import database
 
 # Create router
@@ -15,6 +16,18 @@ router = APIRouter(
 )
 
 # Pydantic models for request/response validation
+class StatsResponse(BaseModel):
+    students: int
+    faculty: int
+    programs: int
+    research: int
+
+class OverviewResponse(BaseModel):
+    title: str
+    description: str
+    stats: StatsResponse
+    heroImage: Optional[str] = None
+
 class AnnouncementResponse(BaseModel):
     id: int
     title: str
@@ -30,6 +43,73 @@ class AnnouncementResponse(BaseModel):
         from_attributes = True
 
 # Routes
+@router.get("/overview", response_model=OverviewResponse)
+async def get_overview(db: Session = Depends(database.get_db)):
+    """
+    Get overview statistics for the home page.
+    
+    Returns:
+    - title: Page title
+    - description: Page description
+    - stats: Object containing various statistics
+      - students: Number of students
+      - faculty: Number of faculty members
+      - programs: Number of programs
+      - research: Number of research projects
+    - heroImage: URL for the hero image
+    """
+    try:
+        # Count students (users with 'student' in their role name)
+        student_count = db.query(User).join(Role).filter(
+            or_(
+                func.lower(Role.name).ilike('%student%'),
+                func.lower(Role.name).ilike('%learner%')
+            )
+        ).count()
+        
+        # Count faculty (users with 'faculty' or 'professor' in their role name)
+        faculty_count = db.query(User).join(Role).filter(
+            or_(
+                func.lower(Role.name).ilike('%faculty%'),
+                func.lower(Role.name).ilike('%professor%'),
+                func.lower(Role.name).ilike('%teacher%'),
+                func.lower(Role.name).ilike('%instructor%')
+            )
+        ).count()
+        
+        # For demo purposes - in a real app, you'd query these from your database
+        programs_count = 12  # Replace with actual query if you have a programs table
+        research_count = 25  # Replace with actual query if you have a research table
+        
+        return {
+            "title": "Welcome to Our University",
+            "description": "Empowering students through excellence in education and research.",
+            "stats": {
+                "students": student_count,
+                "faculty": faculty_count,
+                "programs": programs_count,
+                "research": research_count
+            },
+            "heroImage": "/images/university-hero.jpg"
+        }
+        
+    except Exception as e:
+        # Log the error for debugging
+        print(f"Error fetching overview data: {str(e)}")
+        # Return default values in case of error
+        return {
+            "title": "Welcome to Our University",
+            "description": "Empowering students through excellence in education and research.",
+            "stats": {
+                "students": 0,
+                "faculty": 0,
+                "programs": 0,
+                "research": 0
+            },
+            "heroImage": "/images/university-hero.jpg"
+        }
+
+
 @router.get("/announcements", response_model=List[AnnouncementResponse])
 async def get_announcements(
     limit: int = Query(10, description="Number of announcements to return"),
