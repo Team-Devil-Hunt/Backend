@@ -301,3 +301,18 @@ class Faculty(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class Exam(Base):
+    __tablename__ = "exams"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    courseCode = Column(String, nullable=False)
+    courseTitle = Column(String, nullable=False)
+    semester = Column(Integer, nullable=False)
+    batch = Column(String, nullable=False)
+    examType = Column(String, nullable=False)  # "midterm" | "final" | "retake" | "improvement"
+    date = Column(DateTime, nullable=False)
+    startTime = Column(String, nullable=False)  # "HH:MM"
+    endTime = Column(String, nullable=False)    # "HH:MM"
+    room = Column(String, nullable=False)
+    invigilators = Column(JSON, nullable=False) # List of names
+    status = Column(String, nullable=False)     # "scheduled" | "ongoing" | "completed" | "cancelled"
+    notes = Column(String, nullable=True)
