@@ -25,7 +25,22 @@ class StatsResponse(BaseModel):
 class OverviewResponse(BaseModel):
 
     stats: StatsResponse
- 
+
+from models import PriorityLevel
+from models import AnnouncementType
+from models import Announcement
+from middleware import permission_required
+from database import get_db
+
+
+
+class AnnouncementCreate(BaseModel):
+    title: str
+    content: str
+    date: Optional[datetime] = None
+    type: AnnouncementType
+    priority: PriorityLevel
+    image: Optional[str] = None
 
 class AnnouncementResponse(BaseModel):
     id: int
@@ -42,6 +57,31 @@ class AnnouncementResponse(BaseModel):
         from_attributes = True
 
 # Routes
+
+
+from fastapi import Body
+
+@router.post("/announcements", response_model=AnnouncementResponse)
+def create_announcement(
+    announcement: AnnouncementCreate = Body(...),
+    officer: dict = Depends(permission_required("MANAGE_NOTICES")),
+    db: Session = Depends(get_db)
+):
+    new_announcement = Announcement(
+        title=announcement.title,
+        content=announcement.content,
+        date=announcement.date or datetime.utcnow(),
+        type=announcement.type,
+        priority=announcement.priority,
+        image=announcement.image,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(new_announcement)
+    db.commit()
+    db.refresh(new_announcement)
+    return new_announcement
+
 @router.get("/overview", response_model=OverviewResponse)
 async def get_overview(db: Session = Depends(database.get_db)):
     """
@@ -144,3 +184,5 @@ async def get_announcements(
         print(f"Error fetching announcements: {str(e)}")
         # Return empty list if there's an error (e.g., table doesn't exist)
         return []
+
+
