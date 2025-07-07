@@ -23,8 +23,9 @@ class StatsResponse(BaseModel):
     research: int
 
 class OverviewResponse(BaseModel):
-   
+
     stats: StatsResponse
+ 
 
 class AnnouncementResponse(BaseModel):
     id: int
@@ -93,14 +94,14 @@ async def get_overview(db: Session = Depends(database.get_db)):
         print(f"Error fetching overview data: {str(e)}")
         # Return default values in case of error
         return {
-           
+ 
             "stats": {
                 "students": 0,
                 "faculty": 0,
                 "programs": 0,
                 "research": 0
             },
-     
+
         }
 
 
