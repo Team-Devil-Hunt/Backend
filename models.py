@@ -250,30 +250,6 @@ class Announcement(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-class QuickLink(Base):
-    __tablename__ = "quick_links"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    description = Column(Text, nullable=True)
-    href = Column(String, nullable=False)
-    icon = Column(String, nullable=True)
-    category = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-class HomeOverview(Base):
-    __tablename__ = "home_overview"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False, default="Welcome to Our Department")
-    description = Column(Text, nullable=True)
-    stats_students = Column(Integer, default=0)
-    stats_faculty = Column(Integer, default=0)
-    stats_programs = Column(Integer, default=0)
-    stats_research = Column(Integer, default=0)
-    hero_image = Column(String, nullable=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class Faculty(Base):
     __tablename__ = "faculty"
@@ -301,6 +277,7 @@ class Faculty(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+
 class Exam(Base):
     __tablename__ = "exams"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -316,3 +293,4 @@ class Exam(Base):
     invigilators = Column(JSON, nullable=False) # List of names
     status = Column(String, nullable=False)     # "scheduled" | "ongoing" | "completed" | "cancelled"
     notes = Column(String, nullable=True)
+
