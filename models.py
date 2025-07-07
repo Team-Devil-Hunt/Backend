@@ -277,3 +277,4 @@ class Faculty(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+# helloworod
