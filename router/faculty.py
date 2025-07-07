@@ -58,6 +58,8 @@ from fastapi import Body
 
 class FacultyResponse(FacultyBase):
     id: int
+    name: str
+    email: str
     created_at: datetime
     updated_at: datetime
 
@@ -124,24 +126,46 @@ async def get_faculty(
     Get all faculty members with optional filtering by department and designation.
     Public endpoint - no authentication required.
     """
-    # Build query
+    from models import User
     query = db.query(Faculty)
-    
     if department:
         query = query.filter(Faculty.department.ilike(f"%{department}%"))
-    
     if designation:
         query = query.filter(Faculty.designation == designation)
-    
-    # Execute query
-    faculty = query.all()
-    
-    # Get unique roles and expertise areas for filters
+    faculty_records = query.all()
     roles = [d.value for d in FacultyDesignation]
-    
-    # Get unique expertise areas (flatten all expertise lists and get unique values)
     expertise_areas = set()
-    for f in faculty:
+    faculty_list = []
+    for f in faculty_records:
+        user = db.query(User).filter(User.id == f.id).first()
+        faculty_dict = {
+            "id": f.id,
+            "name": user.name if user else "",
+            "email": user.email if user else "",
+            "contact": user.contact if user else "",
+            "username": user.username if user else "",
+            "designation": f.designation,
+            "department": f.department,
+            "expertise": f.expertise,
+            "office": f.office,
+            "image": f.image,
+            "website": f.website,
+            "publications": f.publications,
+            "experience": f.experience,
+            "rating": f.rating,
+            "is_chairman": f.is_chairman,
+            "bio": f.bio,
+            "short_bio": f.short_bio,
+            "education": f.education,
+            "courses": f.courses,
+            "research_interests": f.research_interests,
+            "recent_publications": f.recent_publications,
+            "awards": f.awards,
+            "office_hours": f.office_hours,
+            "created_at": f.created_at,
+            "updated_at": f.updated_at,
+        }
+        faculty_list.append(faculty_dict)
         if f.expertise:
             if isinstance(f.expertise, list):
                 expertise_areas.update(f.expertise)
@@ -151,9 +175,8 @@ async def get_faculty(
                     expertise_areas.update(json.loads(f.expertise))
                 except Exception:
                     pass
-    
     return {
-        "faculty": faculty,
+        "faculty": faculty_list,
         "roles": sorted(roles),
         "expertise_areas": sorted(list(expertise_areas))
     }
@@ -177,10 +200,37 @@ async def get_faculty_profile(
             detail=f"Faculty member with ID {faculty_id} not found"
         )
     
-    # Convert SQLAlchemy model to dict
-    faculty_dict = {}
-    for column in Faculty.__table__.columns:
-        faculty_dict[column.name] = getattr(faculty, column.name)
+    
+    from models import User
+    user = db.query(User).filter(User.id == faculty_id).first()
+
+    faculty_dict = {
+        "id": faculty.id,
+        "name": user.name,
+        "email": user.email,
+        "contact": user.contact,
+        "username": user.username,
+        "designation": faculty.designation,
+        "department": faculty.department,
+        "expertise": faculty.expertise,
+        "office": faculty.office,
+        "image": faculty.image,
+        "website": faculty.website,
+        "publications": faculty.publications,
+        "experience": faculty.experience,
+        "rating": faculty.rating,
+        "is_chairman": faculty.is_chairman,
+        "bio": faculty.bio,
+        "short_bio": faculty.short_bio,
+        "education": faculty.education,
+        "courses": faculty.courses,
+        "research_interests": faculty.research_interests,
+        "recent_publications": faculty.recent_publications,
+        "awards": faculty.awards,
+        "office_hours": faculty.office_hours,
+    }
+
+    
     
     # Ensure all required fields have values
     for key in ["recent_publications", "awards", "education", "courses", "research_interests", "expertise"]:
