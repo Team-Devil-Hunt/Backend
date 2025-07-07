@@ -1,13 +1,12 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from sqlalchemy import Float
 
 from sqlalchemy import Table, Enum
-from sqlalchemy.dialects.postgresql import JSON
+from sqlalchemy.dialects.postgresql import JSON, ARRAY
 from enum import Enum as PyEnum
-from sqlalchemy import Text
 
 class EquipmentCategory(Base):
     __tablename__ = 'equipment_categories'
@@ -228,6 +227,30 @@ class FacultyDesignation(str, PyEnum):
     LECTURER = "Lecturer"
 
 
+class AnnouncementType(str, PyEnum):
+    ACADEMIC = 'academic'
+    ADMIN = 'admin'
+    GENERAL = 'general'
+
+class PriorityLevel(str, PyEnum):
+    HIGH = 'high'
+    MEDIUM = 'medium'
+    LOW = 'low'
+
+class Announcement(Base):
+    __tablename__ = "announcements"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    date = Column(DateTime, default=datetime.utcnow)
+    type = Column(Enum(AnnouncementType), nullable=False)
+    priority = Column(Enum(PriorityLevel), nullable=False)
+    image = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Faculty(Base):
     __tablename__ = "faculty"
 
@@ -254,6 +277,7 @@ class Faculty(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+
 class Exam(Base):
     __tablename__ = "exams"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -269,3 +293,4 @@ class Exam(Base):
     invigilators = Column(JSON, nullable=False) # List of names
     status = Column(String, nullable=False)     # "scheduled" | "ongoing" | "completed" | "cancelled"
     notes = Column(String, nullable=True)
+
