@@ -23,10 +23,9 @@ class StatsResponse(BaseModel):
     research: int
 
 class OverviewResponse(BaseModel):
-    title: str
-    description: str
+
     stats: StatsResponse
-    heroImage: Optional[str] = None
+ 
 
 class AnnouncementResponse(BaseModel):
     id: int
@@ -95,15 +94,14 @@ async def get_overview(db: Session = Depends(database.get_db)):
         print(f"Error fetching overview data: {str(e)}")
         # Return default values in case of error
         return {
-            "title": "Welcome to Our University",
-            "description": "Empowering students through excellence in education and research.",
+ 
             "stats": {
                 "students": 0,
                 "faculty": 0,
                 "programs": 0,
                 "research": 0
             },
-            "heroImage": "/images/university-hero.jpg"
+
         }
 
 
