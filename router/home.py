@@ -82,15 +82,12 @@ async def get_overview(db: Session = Depends(database.get_db)):
         research_count = 25  # Replace with actual query if you have a research table
         
         return {
-            "title": "Welcome to Our University",
-            "description": "Empowering students through excellence in education and research.",
             "stats": {
                 "students": student_count,
                 "faculty": faculty_count,
                 "programs": programs_count,
                 "research": research_count
             },
-            "heroImage": "/images/university-hero.jpg"
         }
         
     except Exception as e:
