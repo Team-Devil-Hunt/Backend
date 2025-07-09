@@ -105,17 +105,15 @@ def event_to_camel(event_dict):
         "fee": "fee",
         "external_link": "externalLink",
         "tags": "tags",
+        "created_at": "createdAt",
+        "updated_at": "updatedAt",
     }
     return {api_key: event_dict.get(db_key) for db_key, api_key in mapping.items() if db_key in event_dict}
 
 # Routes
-from pydantic import BaseModel
 from typing import List
 
-class EventsResponse(BaseModel):
-    events: List[dict]
-
-@router.get("", response_model=EventsResponse)
+@router.get("", response_model=List[EventResponse])
 async def get_events(
     skip: int = 0, 
     limit: int = 100,
@@ -130,7 +128,7 @@ async def get_events(
         organizer_role = db.query(Role).filter(Role.id == event.organizer_role_id).first()
         event_dict['organizer'] = organizer_role.name if organizer_role else 'Unknown Organizer'
         result.append(event_to_camel(event_dict))
-    return {"events": result}
+    return result
 
 @router.post("", response_model=EventResponse)
 async def create_event(
