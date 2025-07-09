@@ -130,19 +130,16 @@ async def get_events(
         result.append(event_to_camel(event_dict))
     return result
 
+
+    
 @router.post("", response_model=EventResponse)
 async def create_event(
     event: EventCreate,
     current_user: dict = Depends(permission_required("MANAGE_EVENTS")),
     db: Session = Depends(database.get_db)
 ):
-    """Create a new event (Requires MANAGE_EVENTS permission)"""
-    # Debug: Print current_user to see what we're getting
-    print("Current User:", current_user)
-    
-    # Debug: Print current_user to see what we're getting
-    print("Current User:", current_user)
-    
+
+
     # Get role_id from the nested role structure
     try:
         role_id = current_user.get('role', {}).get('id')
@@ -166,16 +163,31 @@ async def create_event(
         )
     
     db_event = Event(
-        **event.dict(exclude={"type", "status"}),
-        type=convert_event_type(event.type),
-        status=convert_event_status(event.status),
-        organizer_role_id=role_id,  # Use the validated role_id
+        title=event.title,
+        description=event.description,
+        type=event.type,
+        status=event.status,
+        start_date=event.startDate,
+        end_date=event.endDate,
+        venue=event.venue,
+        speaker=event.speaker,
+        organizer_role_id=role_id,
+        max_participants=event.maxParticipants,
+        registration_required=event.registrationRequired,
+        registration_deadline=event.registrationDeadline,
+        fee=event.fee,
+        external_link=event.externalLink,
+        tags=event.tags,
         registered_count=0
     )
     
     db.add(db_event)
     db.commit()
     db.refresh(db_event)
+    event_dict = {c.name: getattr(db_event, c.name) for c in db_event.__table__.columns}
+    organizer_role = db.query(Role).filter(Role.id == db_event.organizer_role_id).first()
+    event_dict['organizer'] = organizer_role.name if organizer_role else 'Unknown Organizer'
+    return event_to_camel(event_dict)
     
     # Get the organizer's role name
     organizer_role = db.query(Role).filter(Role.id == db_event.organizer_role_id).first()
