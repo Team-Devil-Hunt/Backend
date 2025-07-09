@@ -36,15 +36,15 @@ class EventBase(BaseModel):
     description: Optional[str] = None
     type: EventTypeEnum
     status: EventStatusEnum
-    start_date: datetime
-    end_date: datetime
+    startDate: datetime
+    endDate: datetime
     venue: str
     speaker: Optional[str] = None
-    max_participants: Optional[int] = None
-    registration_required: bool = False
-    registration_deadline: Optional[datetime] = None
+    maxParticipants: Optional[int] = None
+    registrationRequired: bool = False
+    registrationDeadline: Optional[datetime] = None
     fee: Optional[float] = None
-    external_link: Optional[str] = None
+    externalLink: Optional[str] = None
     tags: Optional[List[str]] = []
 
 class EventCreate(EventBase):
@@ -53,26 +53,30 @@ class EventCreate(EventBase):
 class EventResponse(EventBase):
     id: int
     organizer: str
-    registered_count: int = 0
-    created_at: datetime
-    updated_at: datetime
+    registeredCount: int = 0
+    createdAt: datetime
+    updatedAt: datetime
 
     class Config:
         orm_mode = True
 
 class RegistrationRequest(BaseModel):
-    full_name: str
+    fullName: str
     email: str
     phone: str
-    student_id: Optional[str] = None
+    studentId: Optional[str] = None
     department: Optional[str] = None
     year: Optional[str] = None
-    special_requirements: Optional[str] = None
+    specialRequirements: Optional[str] = None
 
+from pydantic import Field
 class RegistrationResponse(BaseModel):
     success: bool
-    registration_id: int
+    registrationId: int = Field(..., alias="registrationId")
     message: str
+
+    class Config:
+        allow_population_by_field_name = True
 
 # Helper function to convert EventType and EventStatus enums
 def convert_event_type(event_type: EventTypeEnum) -> EventType:
@@ -81,8 +85,37 @@ def convert_event_type(event_type: EventTypeEnum) -> EventType:
 def convert_event_status(status: EventStatusEnum) -> EventStatus:
     return EventStatus[status.name]
 
+# Helper to convert snake_case dict to camelCase for API responses
+def event_to_camel(event_dict):
+    mapping = {
+        "id": "id",
+        "title": "title",
+        "description": "description",
+        "type": "type",
+        "status": "status",
+        "start_date": "startDate",
+        "end_date": "endDate",
+        "venue": "venue",
+        "speaker": "speaker",
+        "organizer": "organizer",
+        "max_participants": "maxParticipants",
+        "registered_count": "registeredCount",
+        "registration_required": "registrationRequired",
+        "registration_deadline": "registrationDeadline",
+        "fee": "fee",
+        "external_link": "externalLink",
+        "tags": "tags",
+    }
+    return {api_key: event_dict.get(db_key) for db_key, api_key in mapping.items() if db_key in event_dict}
+
 # Routes
-@router.get("", response_model=List[EventResponse])
+from pydantic import BaseModel
+from typing import List
+
+class EventsResponse(BaseModel):
+    events: List[dict]
+
+@router.get("", response_model=EventsResponse)
 async def get_events(
     skip: int = 0, 
     limit: int = 100,
@@ -90,17 +123,14 @@ async def get_events(
 ):
     """Get all events with optional pagination (Public endpoint)"""
     events = db.query(Event).offset(skip).limit(limit).all()
-    
-    # Convert each event to a dictionary and add the organizer field
     result = []
     for event in events:
         event_dict = {c.name: getattr(event, c.name) for c in event.__table__.columns}
         # Get the organizer's name from the role
         organizer_role = db.query(Role).filter(Role.id == event.organizer_role_id).first()
         event_dict['organizer'] = organizer_role.name if organizer_role else 'Unknown Organizer'
-        result.append(event_dict)
-    
-    return result
+        result.append(event_to_camel(event_dict))
+    return {"events": result}
 
 @router.post("", response_model=EventResponse)
 async def create_event(
@@ -159,6 +189,19 @@ async def create_event(
     
     return response_data
 
+
+
+def registration_to_camel(registration_dict):
+    mapping = {
+        "id": "id",
+        "event_id": "eventId",
+        "user_id": "userId",
+        "full_name": "fullName",
+        "email": "email",
+        "phone": "phone",
+        "student_id": "studentId",
+    }
+    return {api_key: registration_dict.get(db_key) for db_key, api_key in mapping.items() if db_key in registration_dict}
 @router.post("/{event_id}/register", response_model=RegistrationResponse)
 async def register_for_event(
     event_id: int,
@@ -241,6 +284,6 @@ async def register_for_event(
     # Ensure the response matches the RegistrationResponse model
     return RegistrationResponse(
         success=True,
-        registration_id=db_registration.id,
+        registrationId=db_registration.id,
         message="Successfully registered for the event"
     )
