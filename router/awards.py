@@ -37,10 +37,10 @@ class AwardSchema(BaseModel):
             'recipientType': 'recipient_type',
         }
 
-@router.get("/", response_model=dict)
+@router.get("/", response_model=list)
 def get_awards(db: Session = Depends(get_db)):
     awards = db.query(Award).all()
-    return {"awards": [
+    return [
         AwardSchema(
             id=a.id,
             title=a.title,
@@ -58,7 +58,7 @@ def get_awards(db: Session = Depends(get_db)):
             publications=a.publications,
             link=a.link
         ) for a in awards
-    ]}
+    ]   
 
 @router.post("/", dependencies=[Depends(permission_required("MANAGE_AWARDS"))])
 def post_award(award: AwardSchema, db: Session = Depends(get_db)):
