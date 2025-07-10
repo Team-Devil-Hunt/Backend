@@ -7,6 +7,9 @@ from sqlalchemy import Float
 from sqlalchemy import Table, Enum
 from sqlalchemy.dialects.postgresql import JSON, ARRAY
 from enum import Enum as PyEnum
+from sqlalchemy import (
+    Column, Integer, String, DateTime, Boolean, Float, ForeignKey, Enum, JSON, Date
+)
 
 class EquipmentCategory(Base):
     __tablename__ = 'equipment_categories'
@@ -192,9 +195,10 @@ class Event(Base):
     registrations = relationship("EventRegistration", back_populates="event")
 
 
+
+
 class EventRegistration(Base):
     __tablename__ = "event_registrations"
-
     id = Column(Integer, primary_key=True, index=True)
     event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -210,6 +214,43 @@ class EventRegistration(Base):
     event = relationship("Event", back_populates="registrations")
     user = relationship("User")
 
+
+class Lab(Base):
+    __tablename__ = "labs"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    location = Column(String, nullable=False)
+    capacity = Column(Integer, nullable=False)
+    facilities = Column(JSON, nullable=True)
+    image = Column(String, nullable=True)
+    time_slots = relationship("LabTimeSlot", back_populates="lab", cascade="all, delete-orphan")
+    bookings = relationship("LabBooking", back_populates="lab", cascade="all, delete-orphan")
+
+class LabTimeSlot(Base):
+    __tablename__ = "lab_time_slots"
+    id = Column(Integer, primary_key=True, index=True)
+    lab_id = Column(Integer, ForeignKey("labs.id"), nullable=False)
+    day = Column(String, nullable=False)
+    start_time = Column(String, nullable=False)  # e.g., '09:00'
+    end_time = Column(String, nullable=False)    # e.g., '11:00'
+    lab = relationship("Lab", back_populates="time_slots")
+    bookings = relationship("LabBooking", back_populates="time_slot", cascade="all, delete-orphan")
+
+
+class LabBooking(Base):
+    __tablename__ = "lab_bookings"
+    id = Column(Integer, primary_key=True, index=True)
+    lab_id = Column(Integer, ForeignKey("labs.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    time_slot_id = Column(Integer, ForeignKey("lab_time_slots.id"), nullable=False)
+    date = Column(Date, nullable=False)
+    purpose = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="pending") # approved, pending, rejected
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    lab = relationship("Lab", back_populates="bookings")
+    time_slot = relationship("LabTimeSlot", back_populates="bookings")
 
 class ForgotPassword(Base):
     __tablename__ = "forgot_password"
