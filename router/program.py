@@ -42,43 +42,101 @@ class ProgramCreate(ProgramBase):
     pass
 
 
-class ProgramResponse(ProgramBase):
-    id: int
-    total_students: int = 0
-    total_courses: int = 0
-    total_credits: int = 0
-    created_at: datetime
-    updated_at: datetime
-
+class CareerProspectResponse(BaseModel):
+    title: str
+    description: str
+    avgSalary: str
+    
     model_config = {
         "from_attributes": True,
-        "populate_by_name": True,
-        "json_schema_extra": {
-            "example": {
-                "id": 1,
-                "title": "Computer Science",
-                "level": "Undergraduate",
-                "duration": "4 years",
-                "total_students": 250,
-                "total_courses": 40,
-                "total_credits": 120,
-                "short_description": "A comprehensive program covering all aspects of computer science",
-                "description": "This program provides a strong foundation in computer science principles...",
-                "specializations": ["Artificial Intelligence", "Data Science", "Cybersecurity"],
-                "learning_objectives": ["Develop problem-solving skills", "Master programming languages"],
-                "career_prospects": [
-                    {
-                        "title": "Software Engineer",
-                        "description": "Design and develop software applications",
-                        "salary_range": "$70,000 - $150,000",
-                        "companies": ["Google", "Microsoft", "Amazon"]
-                    }
-                ],
-                "created_at": "2025-01-01T00:00:00",
-                "updated_at": "2025-01-01T00:00:00"
-            }
-        }
+        "populate_by_name": True
     }
+
+class ProgramResponse(BaseModel):
+    id: str
+    title: str
+    level: str
+    duration: str
+    totalStudents: int
+    totalCourses: int
+    totalCredits: int
+    shortDescription: str
+    description: str
+    specializations: List[str]
+    learningObjectives: List[str]
+    careerProspects: List[CareerProspectResponse]
+    
+    model_config = {
+        "from_attributes": True,
+        "populate_by_name": True
+    }
+        
+    @classmethod
+    def from_orm(cls, db_obj):
+        # Convert database object to response model
+        career_prospects = []
+        try:
+            if db_obj.career_prospects:
+                for cp in db_obj.career_prospects:
+                    try:
+                        # Handle career prospects as dictionaries
+                        if isinstance(cp, dict):
+                            # Ensure we have a string value for avgSalary
+                            salary = cp.get('salary_range')
+                            if salary is None:
+                                salary = 'N/A'
+                                
+                            career_prospects.append(CareerProspectResponse(
+                                title=cp.get('title', ''),
+                                description=cp.get('description', ''),
+                                avgSalary=str(salary)  # Ensure it's a string
+                            ))
+                        else:
+                            # Handle as objects if they are
+                            # Ensure we have a string value for avgSalary
+                            try:
+                                salary = cp.salary_range
+                                if salary is None:
+                                    salary = 'N/A'
+                            except AttributeError:
+                                salary = 'N/A'
+                                
+                            try:
+                                title = cp.title
+                            except AttributeError:
+                                title = ''
+                                
+                            try:
+                                description = cp.description
+                            except AttributeError:
+                                description = ''
+                                
+                            career_prospects.append(CareerProspectResponse(
+                                title=title,
+                                description=description,
+                                avgSalary=str(salary)  # Ensure it's a string
+                            ))
+                    except Exception:
+                        # Skip any problematic career prospect
+                        continue
+        except Exception:
+            # If any error occurs with career_prospects, just use an empty list
+            pass
+                    
+        return cls(
+            id=str(db_obj.id),
+            title=db_obj.title,
+            level=db_obj.level,
+            duration=db_obj.duration,
+            totalStudents=db_obj.total_students,
+            totalCourses=db_obj.total_courses,
+            totalCredits=db_obj.total_credits,
+            shortDescription=db_obj.short_description,
+            description=db_obj.description or "",
+            specializations=db_obj.specializations or [],
+            learningObjectives=db_obj.learning_objectives or [],
+            careerProspects=career_prospects
+        )
 
 
 # Course schemas
@@ -110,37 +168,86 @@ class CourseCreate(CourseBase):
     pass
 
 
-class CourseResponse(CourseBase):
-    id: int
-    rating: float = 0.0
-    enrolled_students: int = 0
-    created_at: datetime
-    updated_at: datetime
-
+class CourseResponse(BaseModel):
+    id: str
+    code: str
+    title: str
+    description: str
+    credits: int
+    duration: str
+    difficulty: str
+    rating: float
+    enrolledStudents: int
+    prerequisites: List[str]
+    specialization: str
+    semester: int
+    year: int
+    
     model_config = {
         "from_attributes": True,
-        "populate_by_name": True,
-        "json_schema_extra": {
-            "example": {
-                "id": 1,
-                "code": "CS101",
-                "title": "Introduction to Programming",
-                "description": "A foundational course in programming concepts",
-                "credits": 3,
-                "duration": "16 weeks",
-                "difficulty": "Beginner",
-                "rating": 4.5,
-                "enrolled_students": 120,
-                "prerequisites": ["None"],
-                "specialization": "Computer Science",
-                "semester": 1,
-                "year": 2025,
-                "program_id": 1,
-                "created_at": "2025-01-01T00:00:00",
-                "updated_at": "2025-01-01T00:00:00"
-            }
-        }
+        "populate_by_name": True
     }
+        
+    @classmethod
+    def from_orm(cls, db_obj):
+        # Convert database object to response model with robust error handling
+        try:
+            # Safely handle prerequisites - ensure it's a list of strings
+            prerequisites = []
+            try:
+                if db_obj.prerequisites:
+                    if isinstance(db_obj.prerequisites, list):
+                        for prereq in db_obj.prerequisites:
+                            try:
+                                if isinstance(prereq, str):
+                                    prerequisites.append(prereq)
+                                elif isinstance(prereq, dict) and 'code' in prereq:
+                                    prerequisites.append(prereq['code'])
+                                else:
+                                    prerequisites.append(str(prereq))
+                            except Exception:
+                                # Skip any problematic prerequisite
+                                continue
+                    else:
+                        # Handle case where prerequisites might not be a list
+                        prerequisites = [str(db_obj.prerequisites)]
+            except Exception:
+                # If any error with prerequisites, use empty list
+                prerequisites = []
+                
+            # Get all required fields with safe defaults
+            return cls(
+                id=str(db_obj.id),
+                code=getattr(db_obj, 'code', ''),
+                title=getattr(db_obj, 'title', ''),
+                description=getattr(db_obj, 'description', '') or "",
+                credits=getattr(db_obj, 'credits', 0),
+                duration=getattr(db_obj, 'duration', ''),
+                difficulty=getattr(db_obj, 'difficulty', 'Intermediate'),
+                rating=getattr(db_obj, 'rating', 0.0),
+                enrolledStudents=getattr(db_obj, 'enrolled_students', 0),
+                prerequisites=prerequisites,
+                specialization=getattr(db_obj, 'specialization', '') or "",
+                semester=getattr(db_obj, 'semester', 1),
+                year=getattr(db_obj, 'year', 2025)
+            )
+        except Exception as e:
+            # If anything fails, return a minimal valid object
+            return cls(
+                id=str(getattr(db_obj, 'id', 0)),
+                code=getattr(db_obj, 'code', ''),
+                title=getattr(db_obj, 'title', ''),
+                description="",
+                credits=0,
+                duration="",
+                difficulty="Intermediate",
+                rating=0.0,
+                enrolledStudents=0,
+                prerequisites=[],
+                specialization="",
+                semester=1,
+                year=2025
+            )
 
 program_router = APIRouter(
     prefix="/api/programs",
@@ -155,13 +262,13 @@ course_router = APIRouter(
 )
 
 
-@program_router.get("", response_model=List[ProgramResponse])
+@program_router.get("", response_model=Dict[str, List[ProgramResponse]])
 async def get_programs(db: Session = Depends(get_db)):
     """
     Get all academic programs
     """
     programs = db.query(Program).all()
-    return programs
+    return {"programs": [ProgramResponse.from_orm(p) for p in programs]}
 
 
 @program_router.post("", response_model=ProgramResponse, status_code=status.HTTP_201_CREATED)
@@ -191,7 +298,11 @@ async def create_program(
         description=program.description,
         specializations=program.specializations,
         learning_objectives=program.learning_objectives,
-        career_prospects=career_prospects_data
+        career_prospects=career_prospects_data,
+        # Initialize required fields for ProgramResponse
+        total_students=0,  # Start with 0 students
+        total_courses=0,   # Start with 0 courses
+        total_credits=0    # Start with 0 credits
     )
     
     db.add(db_program)
@@ -205,8 +316,9 @@ async def create_program(
         # If refresh fails, we'll return the program without refreshing
         # The program has already been committed to the database
         pass
-        
-    return db_program
+    
+    # Convert the database object to the response model format
+    return ProgramResponse.from_orm(db_program)
 
 
 @program_router.get("/{program_id}", response_model=ProgramResponse)
@@ -220,7 +332,7 @@ async def get_program(program_id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Program with ID {program_id} not found"
         )
-    return program
+    return ProgramResponse.from_orm(program)
 
 
 @program_router.put("/{program_id}", response_model=ProgramResponse)
@@ -243,6 +355,11 @@ async def update_program(
     # Get the program data - level is already a string from validation
     program_data = program_update.model_dump()
     
+    # Special handling for career_prospects
+    if 'career_prospects' in program_data and program_data['career_prospects']:
+        career_prospects_data = [cp.model_dump() for cp in program_update.career_prospects]
+        program_data['career_prospects'] = career_prospects_data
+    
     # Update all attributes
     for key, value in program_data.items():
         setattr(db_program, key, value)
@@ -257,7 +374,7 @@ async def update_program(
         # If refresh fails, we'll return the program without refreshing
         # The program has already been committed to the database
         pass
-    return db_program
+    return ProgramResponse.from_orm(db_program)
 
 
 @program_router.delete("/{program_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -292,13 +409,13 @@ async def delete_program(
 
 
 # Course endpoints
-@course_router.get("", response_model=List[CourseResponse])
+@course_router.get("", response_model=Dict[str, List[CourseResponse]])
 async def get_courses(db: Session = Depends(get_db)):
     """
     Get all courses
     """
     courses = db.query(Course).all()
-    return courses
+    return {"courses": [CourseResponse.from_orm(c) for c in courses]}
 
 
 @course_router.post("", response_model=CourseResponse, status_code=status.HTTP_201_CREATED)
@@ -413,6 +530,7 @@ async def delete_course(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Course with ID {course_id} not found"
         )
+        
     
     # Update program stats
     program = db.query(Program).filter(Program.id == db_course.program_id).first()

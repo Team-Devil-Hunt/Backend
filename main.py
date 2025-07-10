@@ -49,9 +49,6 @@ app.include_router(equipment.router)
 app.include_router(home.router)
 
 app.include_router(lab.router)
-app.include_router(program_router)
-app.include_router(course_router)
-app.include_router(project_router)
 app.include_router(schedule_router)
 
 # Program and course routes
