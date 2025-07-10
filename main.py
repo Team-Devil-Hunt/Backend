@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from router import auth, user, role, admissions, awards, event, equipment, faculty, exams, home, lab
 from router.program import program_router, course_router
 from router.project import project_router
+from router.schedule import router as schedule_router
 
 
 app = FastAPI()
@@ -48,6 +49,10 @@ app.include_router(equipment.router)
 app.include_router(home.router)
 
 app.include_router(lab.router)
+app.include_router(program_router)
+app.include_router(course_router)
+app.include_router(project_router)
+app.include_router(schedule_router)
 
 # Program and course routes
 app.include_router(program_router)
