@@ -429,3 +429,40 @@ class Project(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     supervisor = relationship("User", primaryjoin="Project.supervisor_id == User.id")
+
+
+class ClassType(str, PyEnum):
+    LECTURE = "Lecture"
+    LAB = "Lab"
+    TUTORIAL = "Tutorial"
+
+
+class ClassStatus(str, PyEnum):
+    IN_PROGRESS = "In Progress"
+    UPCOMING = "Upcoming"
+    COMPLETED = "Completed"
+    CANCELLED = "Cancelled"
+
+
+class ClassSchedule(Base):
+    __tablename__ = "class_schedules"
+    id = Column(Integer, primary_key=True, index=True)
+    course_code = Column(String, ForeignKey("courses.code"), nullable=False)
+    course_name = Column(String, nullable=False)
+    type = Column(Enum(ClassType), nullable=False)
+    batch = Column(String, nullable=False)
+    semester = Column(String, nullable=False)
+    day = Column(String, nullable=False)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    room = Column(String, nullable=False)
+    instructor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    instructor_name = Column(String, nullable=False)
+    instructor_designation = Column(String, nullable=False)
+    status = Column(Enum(ClassStatus), nullable=False, default=ClassStatus.UPCOMING)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    course = relationship("Course", foreign_keys=[course_code], primaryjoin="ClassSchedule.course_code == Course.code")
+    instructor = relationship("User", foreign_keys=[instructor_id])
