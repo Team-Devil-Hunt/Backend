@@ -385,3 +385,47 @@ class Course(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     program = relationship("Program", back_populates="courses")
+
+
+class ProjectCategory(str, PyEnum):
+    MACHINE_LEARNING = "machine_learning"
+    WEB_DEVELOPMENT = "web_development"
+    MOBILE_APP = "mobile_app"
+    ALGORITHMS = "algorithms"
+    IOT = "iot"
+    SECURITY = "security"
+    ROBOTICS = "robotics"
+    GRAPHICS = "graphics"
+
+
+class ProjectType(str, PyEnum):
+    STUDENT = "student"
+    FACULTY = "faculty"
+
+
+class Project(Base):
+    __tablename__ = "projects"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    summary = Column(String, nullable=False)
+    abstract = Column(Text, nullable=False)
+    supervisor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    year = Column(Integer, nullable=False)
+    category = Column(String, nullable=False)
+    type = Column(String, nullable=False)
+    tags = Column(JSON, nullable=True)
+    team = Column(JSON, nullable=True)  # Array of {name: string, role?: string}
+    course = Column(String, nullable=True)
+    team_size = Column(Integer, nullable=True)
+    completion_date = Column(DateTime, nullable=False)
+    technologies = Column(JSON, nullable=True)  # Array of strings
+    key_features = Column(JSON, nullable=True)  # Array of strings
+    achievements = Column(JSON, nullable=True)  # Array of strings
+    demo_link = Column(String, nullable=True)
+    github_link = Column(String, nullable=True)
+    paper_link = Column(String, nullable=True)
+    contact_email = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    supervisor = relationship("User", primaryjoin="Project.supervisor_id == User.id")
