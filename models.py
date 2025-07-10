@@ -335,3 +335,53 @@ class Exam(Base):
     status = Column(String, nullable=False)     # "scheduled" | "ongoing" | "completed" | "cancelled"
     notes = Column(String, nullable=True)
 
+
+# Removed ProgramLevel enum - using string directly
+
+
+class CourseDifficulty(PyEnum):
+    BEGINNER = "Beginner"
+    INTERMEDIATE = "Intermediate"
+    ADVANCED = "Advanced"
+
+
+class Program(Base):
+    __tablename__ = "programs"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    level = Column(String, nullable=False)
+    duration = Column(String, nullable=False)
+    total_students = Column(Integer, default=0)
+    total_courses = Column(Integer, default=0)
+    total_credits = Column(Integer, default=0)
+    short_description = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    specializations = Column(JSON, nullable=True)  # Array of strings
+    learning_objectives = Column(JSON, nullable=True)  # Array of strings
+    career_prospects = Column(JSON, nullable=True)  # Array of objects
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    courses = relationship("Course", back_populates="program")
+
+
+class Course(Base):
+    __tablename__ = "courses"
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, nullable=False, unique=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    credits = Column(Integer, nullable=False)
+    duration = Column(String, nullable=False)
+    difficulty = Column(String, nullable=False, default="Intermediate")
+    rating = Column(Float, default=0.0)
+    enrolled_students = Column(Integer, default=0)
+    prerequisites = Column(JSON, nullable=True)  # Array of strings
+    specialization = Column(String, nullable=True)
+    semester = Column(Integer, nullable=False)
+    year = Column(Integer, nullable=False)
+    program_id = Column(Integer, ForeignKey("programs.id"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    program = relationship("Program", back_populates="courses")

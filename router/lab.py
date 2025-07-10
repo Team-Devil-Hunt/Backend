@@ -138,7 +138,7 @@ def create_lab(
 # -------------------
 @router.get("/lab-bookings", response_model=List[LabBookingResponse])
 def get_lab_bookings(
-    current_user: dict = Depends(permission_required("BOOK_LAB")),
+    current_user: dict = Depends(permission_required("VIEW_EQUIPMENT_BOOKINGS")),
     db: Session = Depends(database.get_db)
 ):
     bookings = db.query(models.LabBooking).all()
