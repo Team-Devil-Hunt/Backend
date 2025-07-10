@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 
-from router import auth, user, role, admissions, awards, event, equipment, faculty, exams, home
+from router import auth, user, role, admissions, awards, event, equipment, faculty, exams, home, lab
 
 
 app = FastAPI()
@@ -45,3 +45,4 @@ app.include_router(exams.router)
 app.include_router(equipment.router)
 app.include_router(home.router)
 
+app.include_router(lab.router)
