@@ -21,15 +21,21 @@ def read_root():
 
 
 origins = [
-    "*",  # Allow all origins
+    "http://localhost:5173",  # Frontend development server
+    "http://127.0.0.1:5173",  # Alternative local address
+    "http://localhost:3000",  # Another common development port
+    "http://localhost:4173",  # Vite preview server
+    "http://127.0.0.1:4173",  # Alternative Vite preview address
+    # Remove wildcard when using allow_credentials=True
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Allows all origins
+    allow_origins=origins,  # Specific origins only
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
+    expose_headers=["*"],  # Expose all headers to the browser
 )
 
 

@@ -10,7 +10,7 @@ import sys
 import json
 import traceback
 import psycopg2
-from datetime import datetime
+from datetime import datetime, time
 from dotenv import load_dotenv
 import bcrypt
 
@@ -1386,6 +1386,439 @@ def seed_equipment():
     print("Equipment and labs seeded successfully.")
     return {"labs": lab_ids, "equipment": equipment_ids}
 
+def seed_schedules(course_data, user_ids):
+    """Seed class schedules data."""
+    print("\nSeeding class schedules data...")
+    
+    # Check if class_schedules table exists
+    if not check_table_exists("class_schedules"):
+        print("Table 'class_schedules' does not exist. Creating it...")
+        cursor.execute("""
+        CREATE TYPE class_type AS ENUM ('LECTURE', 'LAB', 'TUTORIAL', 'SEMINAR');
+        CREATE TYPE class_status AS ENUM ('UPCOMING', 'ONGOING', 'COMPLETED', 'CANCELLED');
+        
+        CREATE TABLE class_schedules (
+            id SERIAL PRIMARY KEY,
+            course_code VARCHAR NOT NULL,
+            course_name VARCHAR NOT NULL,
+            type class_type NOT NULL,
+            batch VARCHAR NOT NULL,
+            semester VARCHAR NOT NULL,
+            day VARCHAR NOT NULL,
+            start_time TIMESTAMP NOT NULL,
+            end_time TIMESTAMP NOT NULL,
+            room VARCHAR NOT NULL,
+            instructor_id INTEGER,
+            instructor_name VARCHAR,
+            instructor_designation VARCHAR,
+            status class_status NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        print("Created class_schedules table.")
+    
+    # Check if there are existing class schedules
+    cursor.execute("SELECT COUNT(*) FROM class_schedules")
+    schedule_count = cursor.fetchone()[0]
+
+    if schedule_count > 0:
+        print(f"Class schedules already exist ({schedule_count} found). Deleting existing schedules...")
+        cursor.execute("DELETE FROM class_schedules")
+        print("Existing class schedules deleted.")
+    
+    # Get course codes and titles if not provided
+    courses = []
+    if course_data:
+        cursor.execute("SELECT code, title FROM courses")
+        courses = cursor.fetchall()
+    else:
+        cursor.execute("SELECT code, title FROM courses")
+        courses = cursor.fetchall()
+    
+    if not courses:
+        print("No courses found. Cannot create class schedules.")
+        return {}
+    
+    print(f"Found {len(courses)} courses. Creating class schedules...")
+    
+    # Get faculty data from the database using user_ids
+    faculty_data = []
+    
+    if user_ids and 'faculty' in user_ids and user_ids['faculty']:
+        # Extract faculty IDs from the dictionary
+        faculty_ids_list = list(user_ids['faculty'].values())
+        
+        # Query the database to get faculty information
+        if len(faculty_ids_list) == 1:
+            # Handle single faculty ID case
+            cursor.execute("""
+            SELECT u.id, u.name, f.designation 
+            FROM users u 
+            JOIN faculty f ON u.id = f.id 
+            WHERE u.id = %s
+            """, (faculty_ids_list[0],))
+        else:
+            # Handle multiple faculty IDs case
+            cursor.execute("""
+            SELECT u.id, u.name, f.designation 
+            FROM users u 
+            JOIN faculty f ON u.id = f.id 
+            WHERE u.id IN %s
+            """, (tuple(faculty_ids_list),))
+        
+        faculty_data = cursor.fetchall()
+    
+    # If no faculty data found, use admin user as fallback
+    if not faculty_data and user_ids and 'admin' in user_ids:
+        admin_id = user_ids['admin']
+        cursor.execute("SELECT id, name FROM users WHERE id = %s", (admin_id,))
+        admin_data = cursor.fetchone()
+        if admin_data:
+            faculty_data = [(admin_data[0], admin_data[1], "Administrator")]
+    
+    # Days of the week
+    days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"]
+    
+    # Rooms
+    rooms = ["301", "302", "303", "304", "501", "601", "Lab 1", "Lab 2", "Lab 3", "Lab 4", "Hardware Lab"]
+    
+    # Batches
+    batches = ["25", "24", "23", "22", "MSc", "PhD"]
+    
+    # Time slots
+    time_slots = [
+        ("08:00", "09:30"),
+        ("09:30", "11:00"),
+        ("11:00", "12:30"),
+        ("12:30", "14:00"),
+        ("14:00", "15:30"),
+        ("15:30", "17:00")
+    ]
+    
+    # Helper function to create datetime objects for time
+    def create_time(time_str):
+        hour, minute = map(int, time_str.split(':'))
+        return datetime.combine(datetime.today(), time(hour, minute))
+    
+    # Create schedules for each course
+    class_count = 0
+    schedule_ids = []
+    
+    for i, (code, title) in enumerate(courses):
+        # Determine batch and semester based on course code
+        if "CSE" in code and any(char.isdigit() for char in code):
+            course_num = int(''.join(filter(str.isdigit, code)))
+            year = (course_num // 100) % 10
+            
+            if year <= 4:
+                # Undergraduate
+                batch = batches[year % len(batches)]
+                semester = str((year - 1) * 2 + (i % 2) + 1)
+            else:
+                # Graduate
+                batch = "MSc" if i % 2 == 0 else "PhD"
+                semester = str(i % 4 + 1)
+        else:
+            # Default values
+            batch = batches[i % len(batches)]
+            semester = str(i % 8 + 1)
+        
+        # Create lecture class
+        day = days[i % len(days)]
+        time_slot_idx = i % len(time_slots)
+        start_time_str, end_time_str = time_slots[time_slot_idx]
+        
+        start_time = create_time(start_time_str)
+        end_time = create_time(end_time_str)
+        
+        room = rooms[i % len(rooms)]
+        faculty_idx = i % len(faculty_data)
+        faculty_id, faculty_name, faculty_designation = faculty_data[faculty_idx]
+        
+        # Insert lecture class - using uppercase enum values
+        cursor.execute("""
+        INSERT INTO class_schedules (
+            course_code, course_name, type, batch, semester, day, 
+            start_time, end_time, room, instructor_id, instructor_name, 
+            instructor_designation, status
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
+        """, (
+            code, title, "LECTURE", batch, semester, day,
+            start_time, end_time, room, faculty_id, faculty_name,
+            faculty_designation, "UPCOMING"
+        ))
+        schedule_id = cursor.fetchone()[0]
+        schedule_ids.append(schedule_id)
+        class_count += 1
+        
+        # For some courses, add a lab class
+        if i % 3 == 0:  # Every third course has a lab
+            # Use a different day and time slot for the lab
+            lab_day = days[(i + 2) % len(days)]
+            lab_time_slot_idx = (i + 3) % len(time_slots)
+            lab_start_time_str, lab_end_time_str = time_slots[lab_time_slot_idx]
+            
+            lab_start_time = create_time(lab_start_time_str)
+            lab_end_time = create_time(lab_end_time_str)
+            
+            lab_room = f"Lab {(i % 4) + 1}"
+            lab_faculty_idx = (i + 1) % len(faculty_data)
+            lab_faculty_id, lab_faculty_name, lab_faculty_designation = faculty_data[lab_faculty_idx]
+            
+            # Insert lab class - using uppercase enum values
+            cursor.execute("""
+            INSERT INTO class_schedules (
+                course_code, course_name, type, batch, semester, day, 
+                start_time, end_time, room, instructor_id, instructor_name, 
+                instructor_designation, status
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """, (
+                code, title, "LAB", batch, semester, lab_day,
+                lab_start_time, lab_end_time, lab_room, lab_faculty_id, lab_faculty_name,
+                lab_faculty_designation, "UPCOMING"
+            ))
+            schedule_id = cursor.fetchone()[0]
+            schedule_ids.append(schedule_id)
+            class_count += 1
+    
+    print(f"Successfully added {class_count} class schedules to the database.")
+    return {"schedules": schedule_ids}
+
+def seed_events(role_ids):
+    """Seed events data."""
+    print("\nSeeding events data...")
+    
+    # Check if events table exists
+    if not check_table_exists("events"):
+        print("Table 'events' does not exist. Creating it...")
+        cursor.execute("""
+        CREATE TYPE event_type AS ENUM ('seminar', 'workshop', 'conference', 'competition', 'cultural', 'academic');
+        CREATE TYPE event_status AS ENUM ('upcoming', 'ongoing', 'registration_open', 'registration_closed', 'completed');
+        
+        CREATE TABLE events (
+            id SERIAL PRIMARY KEY,
+            title VARCHAR NOT NULL,
+            description TEXT,
+            type event_type NOT NULL,
+            status event_status NOT NULL,
+            start_date TIMESTAMP NOT NULL,
+            end_date TIMESTAMP NOT NULL,
+            venue VARCHAR NOT NULL,
+            speaker VARCHAR,
+            organizer_role_id INTEGER REFERENCES roles(id),
+            max_participants INTEGER,
+            registered_count INTEGER DEFAULT 0,
+            registration_required BOOLEAN DEFAULT FALSE,
+            registration_deadline TIMESTAMP,
+            fee FLOAT,
+            external_link VARCHAR,
+            tags JSONB,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        
+        CREATE TABLE event_registrations (
+            id SERIAL PRIMARY KEY,
+            event_id INTEGER REFERENCES events(id) NOT NULL,
+            user_id INTEGER REFERENCES users(id) NOT NULL,
+            full_name VARCHAR NOT NULL,
+            email VARCHAR NOT NULL,
+            phone VARCHAR NOT NULL,
+            student_id VARCHAR,
+            department VARCHAR,
+            year VARCHAR,
+            special_requirements TEXT,
+            registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        print("Created events and event_registrations tables.")
+    
+    # Use the admin role ID for organizers
+    admin_role_id = role_ids.get('ADMIN')
+    if not admin_role_id:
+        print("Error: Admin role not found. Cannot seed events.")
+        return {}
+        
+    # For simplicity, we'll use the admin role for all events
+    # In a real application, you would create specific roles for student council, programming club, etc.
+    student_council_role_id = admin_role_id
+    programming_club_role_id = admin_role_id
+    department_role_id = admin_role_id
+    
+    # Sample events data
+    events_data = [
+        {
+            "title": "AI & Machine Learning Symposium 2025",
+            "description": "Join leading researchers and industry experts as they discuss the latest advances in artificial intelligence and machine learning technologies.",
+            "type": "CONFERENCE",
+            "status": "REGISTRATION_OPEN",
+            "start_date": "2025-08-15 09:00:00",
+            "end_date": "2025-08-15 17:00:00",
+            "venue": "Main Auditorium, CSE Building",
+            "speaker": "Dr. Sarah Ahmed, MIT",
+            "organizer_role_id": department_role_id,
+            "max_participants": 200,
+            "registered_count": 145,
+            "registration_required": True,
+            "registration_deadline": "2025-08-10 23:59:59",
+            "fee": 500,
+            "external_link": "https://ai-symposium.csedu.ac.bd",
+            "tags": ["AI", "Machine Learning", "Research"]
+        },
+        {
+            "title": "Web Development Workshop",
+            "description": "Hands-on workshop covering modern web development technologies including React, Node.js, and MongoDB.",
+            "type": "WORKSHOP",
+            "status": "UPCOMING",
+            "start_date": "2025-07-20 14:00:00",
+            "end_date": "2025-07-20 18:00:00",
+            "venue": "Computer Lab 1, 3rd Floor",
+            "speaker": "Md. Rafiq Hassan, Senior Developer",
+            "organizer_role_id": programming_club_role_id,
+            "max_participants": 30,
+            "registered_count": 28,
+            "registration_required": True,
+            "registration_deadline": "2025-07-18 23:59:59",
+            "fee": 0,
+            "external_link": None,
+            "tags": ["Web Development", "React", "Node.js"]
+        },
+        {
+            "title": "Cybersecurity Awareness Seminar",
+            "description": "Learn about the latest cybersecurity threats and how to protect yourself and your organization from cyber attacks.",
+            "type": "SEMINAR",
+            "status": "REGISTRATION_OPEN",
+            "start_date": "2025-07-25 10:00:00",
+            "end_date": "2025-07-25 12:30:00",
+            "venue": "Room 302, CSE Building",
+            "speaker": "Tasnim Kabir, Security Specialist",
+            "organizer_role_id": department_role_id,
+            "max_participants": 100,
+            "registered_count": 45,
+            "registration_required": True,
+            "registration_deadline": "2025-07-23 23:59:59",
+            "fee": 0,
+            "external_link": None,
+            "tags": ["Cybersecurity", "Digital Safety", "Hacking Prevention"]
+        },
+        {
+            "title": "Annual Programming Contest 2025",
+            "description": "Test your programming skills in this competitive event with challenging problems and exciting prizes.",
+            "type": "COMPETITION",
+            "status": "UPCOMING",
+            "start_date": "2025-09-10 09:00:00",
+            "end_date": "2025-09-10 17:00:00",
+            "venue": "All Computer Labs, CSE Building",
+            "speaker": None,
+            "organizer_role_id": programming_club_role_id,
+            "max_participants": 150,
+            "registered_count": 0,
+            "registration_required": True,
+            "registration_deadline": "2025-09-05 23:59:59",
+            "fee": 200,
+            "external_link": "https://contest.csedu.ac.bd",
+            "tags": ["Programming", "Algorithms", "Competition"]
+        },
+        {
+            "title": "CSE Cultural Night 2025",
+            "description": "An evening of music, dance, and performances by the talented students of the CSE department.",
+            "type": "CULTURAL",
+            "status": "UPCOMING",
+            "start_date": "2025-10-15 18:00:00",
+            "end_date": "2025-10-15 22:00:00",
+            "venue": "University Auditorium",
+            "speaker": None,
+            "organizer_role_id": student_council_role_id,
+            "max_participants": 500,
+            "registered_count": 0,
+            "registration_required": False,
+            "registration_deadline": None,
+            "fee": 100,
+            "external_link": None,
+            "tags": ["Cultural", "Entertainment", "Music"]
+        },
+        {
+            "title": "Research Methodology Workshop",
+            "description": "Essential workshop for graduate students covering research methodologies, paper writing, and publication strategies.",
+            "type": "WORKSHOP",
+            "status": "UPCOMING",
+            "start_date": "2025-08-05 10:00:00",
+            "end_date": "2025-08-05 16:00:00",
+            "venue": "Seminar Room, CSE Building",
+            "speaker": "Dr. Anisur Rahman",
+            "organizer_role_id": department_role_id,
+            "max_participants": 50,
+            "registered_count": 0,
+            "registration_required": True,
+            "registration_deadline": "2025-08-01 23:59:59",
+            "fee": 0,
+            "external_link": None,
+            "tags": ["Research", "Academic Writing", "Publication"]
+        },
+        {
+            "title": "Mobile App Development Bootcamp",
+            "description": "Intensive 3-day bootcamp on mobile app development using React Native and Flutter.",
+            "type": "WORKSHOP",
+            "status": "UPCOMING",
+            "start_date": "2025-11-20 09:00:00",
+            "end_date": "2025-11-22 17:00:00",
+            "venue": "Computer Lab 2, CSE Building",
+            "speaker": "Multiple Industry Experts",
+            "organizer_role_id": programming_club_role_id,
+            "max_participants": 40,
+            "registered_count": 0,
+            "registration_required": True,
+            "registration_deadline": "2025-11-15 23:59:59",
+            "fee": 1000,
+            "external_link": "https://mobilebootcamp.csedu.ac.bd",
+            "tags": ["Mobile Development", "React Native", "Flutter"]
+        }
+    ]
+    
+    # Clear existing events data
+    cursor.execute("DELETE FROM event_registrations")
+    cursor.execute("DELETE FROM events")
+    
+    event_ids = {}
+    
+    # Insert events data
+    for event in events_data:
+        cursor.execute("""
+        INSERT INTO events (title, description, type, status, start_date, end_date, venue, speaker, 
+                          organizer_role_id, max_participants, registered_count, registration_required, 
+                          registration_deadline, fee, external_link, tags)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
+        """, (
+            event["title"], 
+            event["description"], 
+            event["type"], 
+            event["status"], 
+            event["start_date"], 
+            event["end_date"], 
+            event["venue"], 
+            event["speaker"], 
+            event["organizer_role_id"], 
+            event["max_participants"], 
+            event["registered_count"], 
+            event["registration_required"], 
+            event["registration_deadline"], 
+            event["fee"], 
+            event["external_link"], 
+            json.dumps(event["tags"])
+        ))
+        
+        event_id = cursor.fetchone()[0]
+        event_ids[event["title"]] = event_id
+        print(f"Created event: {event['title']} with ID: {event_id}")
+    
+    conn.commit()
+    print("Events seeded successfully.")
+    return event_ids
+
 def main():
     """Main function to run all seeding functions in the correct order."""
     try:
@@ -1405,14 +1838,17 @@ def main():
         tables_to_clear = [
             # First clear junction/relation tables
             "roles_permissions",
-            "course_prerequisites", 
+            "course_prerequisites",
             "course_faculty",
             "project_faculty",
             "project_students",
             "equipment_bookings",
             "lab_time_slots",
+            "class_schedules",
+            "event_registrations",
             
             # Then clear main entity tables
+            "events",
             "equipment",
             "labs",
             "announcements",
@@ -1467,6 +1903,12 @@ def main():
         # Seed equipment and labs (independent)
         equipment_data = seed_equipment()
         
+        # Seed events (depends on roles)
+        event_ids = seed_events(role_ids)
+        
+        # Seed class schedules (depends on courses and faculty users)
+        schedule_data = seed_schedules(course_data, user_ids)
+        
         print("\n=== Seeding Complete ===\n")
         print("All data has been successfully seeded into the database.")
         print("Summary:")
@@ -1480,6 +1922,8 @@ def main():
         print(f"- {len(announcement_ids)} announcements")
         print(f"- {len(equipment_data['labs'])} labs")
         print(f"- {len(equipment_data['equipment'])} equipment items")
+        print(f"- {len(event_ids)} events")
+        print(f"- {len(schedule_data.get('schedules', []))} class schedules")
         
     except Exception as e:
         print(f"\nError during seeding: {str(e)}")

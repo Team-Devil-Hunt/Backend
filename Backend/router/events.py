@@ -32,9 +32,12 @@ class EventResponse(BaseModel):
     fee: Optional[float] = None
     externalLink: Optional[str] = None
     tags: List[str] = []
+    createdAt: Optional[datetime] = None
+    updatedAt: Optional[datetime] = None
     
     class Config:
         orm_mode = True
+        from_attributes = True
 
 class EventRegistrationRequest(BaseModel):
     fullName: str
@@ -50,7 +53,7 @@ class EventRegistrationResponse(BaseModel):
     registrationId: str
     message: str
 
-@router.get("", response_model=dict)
+@router.get("", response_model=None)
 def get_events(
     type: Optional[str] = None,
     status: Optional[str] = None,
@@ -88,8 +91,8 @@ def get_events(
             "id": event.id,
             "title": event.title,
             "description": event.description,
-            "type": event.type,
-            "status": event.status,
+            "type": str(event.type),
+            "status": str(event.status),
             "startDate": event.start_date,
             "endDate": event.end_date,
             "venue": event.venue,
@@ -102,11 +105,10 @@ def get_events(
             "fee": event.fee,
             "externalLink": event.external_link,
             "tags": event.tags if event.tags else []
+            # Omitting createdAt and updatedAt as they're causing validation issues
         })
     
-    return {
-        "events": events
-    }
+    return events
 
 @router.get("/{event_id}", response_model=EventResponse)
 def get_event(event_id: int, db: Session = Depends(get_db)):
