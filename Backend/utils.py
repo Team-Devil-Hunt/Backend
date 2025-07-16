@@ -5,7 +5,13 @@ from passlib.context import CryptContext
 from email.message import EmailMessage
 import ssl
 import smtplib
+from typing import TYPE_CHECKING, Optional, Any
+from sqlalchemy.orm import Session
 from config import settings
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session as SessionType
+    from models import User
 
 
 pwdContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -32,12 +38,21 @@ def createUserName(name: str):
     return userName
 
 def sendEmail(subject: str, body: str, receiver_email: str):
-    message = EmailMessage()
-    message.set_content(body)
-    message["Subject"] = subject
-    message["From"] = emailSender
-    message["To"] = receiver_email
+    em = EmailMessage()
+    em['From'] = emailSender
+    em['To'] = receiver_email
+    em['Subject'] = subject
+    em.set_content(body)
+
     context = ssl.create_default_context()
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-        server.login(emailSender, emailPassword)
-        server.send_message(message)
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=context) as smtp:
+        smtp.login(emailSender, emailPassword)
+        smtp.sendmail(emailSender, receiver_email, em.as_string())
+
+def get_user_by_email(db: 'SessionType', email: str) -> Optional[Any]:
+    """
+    Get a user by email from the database
+    """
+    from models import User  # Import here to avoid circular imports
+    return db.query(User).filter(User.email == email).first()

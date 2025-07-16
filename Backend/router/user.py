@@ -6,12 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from database import get_db
 from pydantic import BaseModel, EmailStr
 from dependencies import get_user_from_session
-from models import User, Session as SessionModel
+from models import User, Session as SessionModel, Faculty
 from fastapi.responses import JSONResponse
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from middleware import permission_required
-from models import Role, RolePermission, Permission
+from models import Role, RolePermission, Permission, Faculty
+from pydantic import BaseModel
+from sqlalchemy.orm import joinedload
 
 router = APIRouter(
     prefix="/api/user",
@@ -71,6 +73,74 @@ async def all_users(
 
     # Return the final response as JSON
     return JSONResponse(status_code=200, content={"users": response})
+
+
+class FacultyMemberResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    designation: str
+    department: str
+    image: Optional[str] = None
+    office: Optional[str] = None
+    website: Optional[str] = None
+    bio: Optional[str] = None
+    short_bio: Optional[str] = None
+    research_interests: Optional[list] = None
+    office_hours: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+        from_attributes = True
+
+@router.get("/faculty", response_model=List[FacultyMemberResponse])
+async def get_faculty_members(
+    search: Optional[str] = None,
+    department: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all faculty members with optional filtering.
+    This endpoint is used by the meetings page to populate the faculty selector.
+    """
+    query = db.query(User).join(Faculty, User.id == Faculty.id)
+    
+    # Apply filters if provided
+    if search:
+        search = f"%{search.lower()}%"
+        query = query.filter(
+            (User.name.ilike(search)) |
+            (User.email.ilike(search)) |
+            (Faculty.department.ilike(search)) |
+            (Faculty.designation.ilike(search))
+        )
+    
+    if department:
+        query = query.filter(Faculty.department == department)
+    
+    # Execute query and format response
+    faculty_members = query.options(joinedload(User.faculty)).all()
+    
+    # Transform to response model
+    response = []
+    for user in faculty_members:
+        faculty_data = user.faculty
+        response.append({
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "designation": faculty_data.designation,
+            "department": faculty_data.department,
+            "image": faculty_data.image,
+            "office": faculty_data.office,
+            "website": faculty_data.website,
+            "bio": faculty_data.bio,
+            "short_bio": faculty_data.short_bio,
+            "research_interests": faculty_data.research_interests,
+            "office_hours": faculty_data.office_hours
+        })
+    
+    return response
 
 
 @router.post("/createUser")

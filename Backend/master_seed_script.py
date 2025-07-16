@@ -1819,6 +1819,115 @@ def seed_events(role_ids):
     print("Events seeded successfully.")
     return event_ids
 
+def seed_meetings(user_ids):
+    """Seed meetings data."""
+    print("\nSeeding meetings...")
+    
+    try:
+        # Get faculty and student users directly from the database based on role IDs
+        cursor.execute("""
+            SELECT u.id, u.email 
+            FROM users u 
+            WHERE u.role_id = (SELECT id FROM roles WHERE name = 'FACULTY')
+        """)
+        faculty_users = cursor.fetchall()
+        
+        cursor.execute("""
+            SELECT u.id, u.email 
+            FROM users u 
+            WHERE u.role_id = (SELECT id FROM roles WHERE name = 'STUDENT')
+        """)
+        student_users = cursor.fetchall()
+        
+        print(f"Found {len(faculty_users)} faculty users and {len(student_users)} student users for meetings")
+        
+        if not faculty_users or not student_users:
+            print("Warning: No faculty or student users found. Skipping meetings seeding.")
+            return []
+            
+        # Debug output
+        print("Faculty users:")
+        for faculty in faculty_users[:2]:
+            print(f"  ID: {faculty[0]}, Email: {faculty[1]}")
+            
+        print("Student users:")
+        for student in student_users[:2]:
+            print(f"  ID: {student[0]}, Email: {student[1]}")
+    except Exception as e:
+        print(f"Error getting users: {str(e)}")
+        return []
+    
+    # Create meetings
+    meetings = []
+    # Use the correct enum values from the models (uppercase as stored in the database)
+    meeting_types = ['ADVISING', 'THESIS', 'PROJECT', 'GENERAL', 'OTHER']
+    statuses = ['SCHEDULED', 'CONFIRMED', 'CANCELLED', 'COMPLETED']
+    rsvp_statuses = ['PENDING', 'CONFIRMED', 'TENTATIVE', 'DECLINED']
+    
+    try:
+        print("Creating meetings...")
+        for i in range(1, 11):
+            try:
+                faculty = faculty_users[i % len(faculty_users)]
+                student = student_users[i % len(student_users)]
+                
+                meeting = {
+                    'title': f'Meeting {i}: {faculty[1].split("@")[0]} with {student[1].split("@")[0]}',
+                    'description': f'This is a {meeting_types[i % len(meeting_types)]} meeting between student and faculty.',
+                    'faculty_id': faculty[0],
+                    'date': f'2025-{7 + i // 30:02d}-{i % 28 + 1:02d}',  # Spread across July-August 2025
+                    'start_time': f'{(9 + i % 8):02d}:00',  # Between 9:00 and 17:00
+                    'end_time': f'{(10 + i % 6):02d}:00',   # 1-2 hour duration
+                    'location': f'Room {100 + i % 20}, CSE Building',
+                    'meeting_type': meeting_types[i % len(meeting_types)],
+                    'status': statuses[i % len(statuses)],
+                    'rsvp_status': rsvp_statuses[i % len(rsvp_statuses)],
+                    'rsvp_deadline': f'2025-{7 + i // 30:02d}-{i % 28:02d}',  # Day before meeting
+                    'rsvp_notes': f'Please bring your project materials for discussion.' if i % 2 == 0 else None,
+                    'created_at': '2025-07-01 00:00:00',
+                    'updated_at': '2025-07-01 00:00:00'
+                }
+                
+                # Debug output for the first meeting
+                if i == 1:
+                    print("First meeting data:")
+                    for key, value in meeting.items():
+                        print(f"  {key}: {value}")
+                    print(f"  student_id: {student[0]}")
+                
+                try:
+                    cursor.execute("""
+                        INSERT INTO meetings (
+                            title, description, faculty_id, student_id, date, start_time, end_time,
+                            location, meeting_type, status, rsvp_status, rsvp_deadline, rsvp_notes,
+                            created_at, updated_at
+                        ) VALUES (
+                            %(title)s, %(description)s, %(faculty_id)s, %(student_id)s, %(date)s, 
+                            %(start_time)s, %(end_time)s, %(location)s, %(meeting_type)s, %(status)s, 
+                            %(rsvp_status)s, %(rsvp_deadline)s, %(rsvp_notes)s, %(created_at)s, %(updated_at)s
+                        ) RETURNING id;
+                    """, {
+                        **meeting,
+                        'student_id': student[0]
+                    })
+                    
+                    meeting_id = cursor.fetchone()[0]
+                    meetings.append(meeting_id)
+                    print(f"Created meeting {i} with ID {meeting_id}")
+                except Exception as e:
+                    print(f"Error inserting meeting {i}: {str(e)}")
+                    # Continue with other meetings even if one fails
+            except Exception as e:
+                print(f"Error creating meeting {i}: {str(e)}")
+        
+        # Commit the transaction
+        conn.commit()
+        print(f"Seeded {len(meetings)} meetings.")
+    except Exception as e:
+        print(f"Error in meetings creation loop: {str(e)}")
+        return []
+    return meetings
+
 def main():
     """Main function to run all seeding functions in the correct order."""
     try:
@@ -1846,6 +1955,7 @@ def main():
             "lab_time_slots",
             "class_schedules",
             "event_registrations",
+            "meetings",
             
             # Then clear main entity tables
             "events",
@@ -1906,6 +2016,9 @@ def main():
         # Seed events (depends on roles)
         event_ids = seed_events(role_ids)
         
+        # Seed meetings (depends on faculty and student users)
+        meeting_ids = seed_meetings(user_ids)
+        
         # Seed class schedules (depends on courses and faculty users)
         schedule_data = seed_schedules(course_data, user_ids)
         
@@ -1923,6 +2036,7 @@ def main():
         print(f"- {len(equipment_data['labs'])} labs")
         print(f"- {len(equipment_data['equipment'])} equipment items")
         print(f"- {len(event_ids)} events")
+        print(f"- {len(meeting_ids)} meetings")
         print(f"- {len(schedule_data.get('schedules', []))} class schedules")
         
     except Exception as e:

@@ -1,7 +1,7 @@
 from database import Base
-from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean, DateTime, Text, Time, Date
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, time
 from sqlalchemy import Float
 
 from sqlalchemy import Table, Enum
@@ -322,18 +322,29 @@ class Faculty(Base):
 class Exam(Base):
     __tablename__ = "exams"
     id = Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String, nullable=True)  # Optional title for the exam
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)  # Link to course model
     courseCode = Column(String, nullable=False)
     courseTitle = Column(String, nullable=False)
     semester = Column(Integer, nullable=False)
     batch = Column(String, nullable=False)
-    examType = Column(String, nullable=False)  # "midterm" | "final" | "retake" | "improvement"
-    date = Column(DateTime, nullable=False)
+    examType = Column(String, nullable=False)  # "midterm" | "final" | "quiz" | "retake" | "improvement"
+    date = Column(Date, nullable=False)  # Changed from DateTime to Date
     startTime = Column(String, nullable=False)  # "HH:MM"
     endTime = Column(String, nullable=False)    # "HH:MM"
     room = Column(String, nullable=False)
+    location = Column(String, nullable=True)  # More detailed location info
     invigilators = Column(JSON, nullable=False) # List of names
     status = Column(String, nullable=False)     # "scheduled" | "ongoing" | "completed" | "cancelled"
-    notes = Column(String, nullable=True)
+    total_marks = Column(Integer, nullable=True)  # Total marks for the exam
+    obtained_marks = Column(Integer, nullable=True)  # Marks obtained by student (for student view)
+    instructions = Column(Text, nullable=True)  # Special instructions for the exam
+    materials_allowed = Column(JSON, nullable=True)  # List of materials allowed in exam
+    syllabus_topics = Column(JSON, nullable=True)  # List of topics covered in the exam
+    notes = Column(String, nullable=True)  # Additional notes
+    
+    # Relationships
+    course = relationship("Course", foreign_keys=[course_id])
 
 
 class Assignment(Base):
@@ -505,3 +516,50 @@ class ClassSchedule(Base):
     # Relationships
     course = relationship("Course", foreign_keys=[course_code], primaryjoin="ClassSchedule.course_code == Course.code")
     instructor = relationship("User", foreign_keys=[instructor_id])
+
+
+class MeetingType(PyEnum):
+    ADVISING = "advising"
+    THESIS = "thesis"
+    PROJECT = "project"
+    GENERAL = "general"
+    OTHER = "other"
+
+
+class MeetingStatus(PyEnum):
+    SCHEDULED = "scheduled"
+    CONFIRMED = "confirmed"
+    CANCELLED = "cancelled"
+    COMPLETED = "completed"
+
+
+class RSVPStatus(PyEnum):
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    TENTATIVE = "tentative"
+    DECLINED = "declined"
+
+
+class Meeting(Base):
+    __tablename__ = "meetings"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    faculty_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    student_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    date = Column(Date, nullable=False)
+    start_time = Column(Time, nullable=False)
+    end_time = Column(Time, nullable=False)
+    location = Column(String, nullable=True)
+    meeting_type = Column(Enum(MeetingType), nullable=False, default=MeetingType.GENERAL)
+    status = Column(Enum(MeetingStatus), nullable=False, default=MeetingStatus.SCHEDULED)
+    rsvp_status = Column(Enum(RSVPStatus), nullable=False, default=RSVPStatus.PENDING)
+    rsvp_notes = Column(Text, nullable=True)
+    rsvp_deadline = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    faculty = relationship("User", foreign_keys=[faculty_id], backref="faculty_meetings")
+    student = relationship("User", foreign_keys=[student_id], backref="student_meetings")

@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 
-from router import auth, user, role, admissions, awards, event, equipment, faculty, exams, home, lab
-from router import home_quicklinks, contact, projects, events, announcements, lab_bookings, assignments, courses
+from router import auth, user, role, admissions, awards, event, equipment, faculty, exams, home, lab, meetings
+from router import home_quicklinks, contact, projects, events, announcements, lab_bookings, assignments, courses, student_courses, student_exams
 from router.program import program_router, course_router
 from router.project import project_router
 from router.schedule import router as schedule_router
@@ -26,16 +26,16 @@ origins = [
     "http://localhost:3000",  # Another common development port
     "http://localhost:4173",  # Vite preview server
     "http://127.0.0.1:4173",  # Alternative Vite preview address
-    # Remove wildcard when using allow_credentials=True
+    # Add any additional origins as needed
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,  # Specific origins only
-    allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
-    expose_headers=["*"],  # Expose all headers to the browser
+    allow_credentials=True,  # Essential for cookies
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-TOKEN"],  # Explicit headers
+    expose_headers=["Set-Cookie"],  # Expose cookie headers to the browser
 )
 
 
@@ -57,8 +57,12 @@ app.include_router(courses.router)
 app.include_router(project_router)
 app.include_router(projects.router)
 app.include_router(events.router)
+app.include_router(assignments.router)
+app.include_router(meetings.router)
 app.include_router(announcements.router)
 app.include_router(lab.router)
 app.include_router(lab_bookings.router)
 app.include_router(schedule_router)
 app.include_router(assignments.router)
+app.include_router(student_courses.router)
+app.include_router(student_exams.router)
