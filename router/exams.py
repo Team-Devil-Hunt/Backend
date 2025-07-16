@@ -31,26 +31,33 @@ class ExamResponse(ExamBase):
     class Config:
         from_attributes = True
 
-@router.get("", response_model=list)
+@router.get("", response_model=List[ExamResponse])
 def get_exams(db: Session = Depends(get_db)):
     exams = db.query(Exam).all()
-    return [
-        ExamResponse(
-            id=e.id,
-            courseCode=e.courseCode,
-            courseTitle=e.courseTitle,
-            semester=e.semester,
-            batch=e.batch,
-            examType=e.examType,
-            date=e.date,
-            startTime=e.startTime,
-            endTime=e.endTime,
-            room=e.room,
-            invigilators=e.invigilators,
-            status=e.status,
-            notes=e.notes
-        ) for e in exams
-    ]
+    result = []
+    
+    for e in exams:
+        try:
+            exam_response = ExamResponse(
+                id=e.id,
+                courseCode=e.courseCode,
+                courseTitle=e.courseTitle,
+                semester=e.semester,
+                batch=e.batch,
+                examType=e.examType,
+                date=e.date,
+                startTime=e.startTime,
+                endTime=e.endTime,
+                room=e.room,
+                invigilators=e.invigilators,
+                status=e.status,
+                notes=e.notes if e.notes else ""
+            )
+            result.append(exam_response)
+        except Exception as ex:
+            print(f"Error processing exam {e.id}: {ex}")
+    
+    return result
 
 @router.post("", response_model=ExamResponse)
 def create_exam(

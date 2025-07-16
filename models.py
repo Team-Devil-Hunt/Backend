@@ -323,8 +323,6 @@ class Faculty(Base):
 class Exam(Base):
     __tablename__ = "exams"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    title = Column(String, nullable=True)  # Optional title for the exam
-    course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)  # Link to course model
     courseCode = Column(String, nullable=False)
     courseTitle = Column(String, nullable=False)
     semester = Column(Integer, nullable=False)
@@ -334,18 +332,9 @@ class Exam(Base):
     startTime = Column(String, nullable=False)  # "HH:MM"
     endTime = Column(String, nullable=False)    # "HH:MM"
     room = Column(String, nullable=False)
-    location = Column(String, nullable=True)  # More detailed location info
     invigilators = Column(JSON, nullable=False) # List of names
     status = Column(String, nullable=False)     # "scheduled" | "ongoing" | "completed" | "cancelled"
-    total_marks = Column(Integer, nullable=True)  # Total marks for the exam
-    obtained_marks = Column(Integer, nullable=True)  # Marks obtained by student (for student view)
-    instructions = Column(Text, nullable=True)  # Special instructions for the exam
-    materials_allowed = Column(JSON, nullable=True)  # List of materials allowed in exam
-    syllabus_topics = Column(JSON, nullable=True)  # List of topics covered in the exam
     notes = Column(String, nullable=True)  # Additional notes
-    
-    # Relationships
-    course = relationship("Course", foreign_keys=[course_id])
 
 
 class Assignment(Base):

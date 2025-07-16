@@ -24,7 +24,7 @@ class LabBookingResponse(LabBookingBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class LabBookingCreate(LabBookingBase):
     pass
@@ -53,22 +53,47 @@ def get_lab_bookings(
     """
     Get all lab bookings with optional filtering
     """
-    query = db.query(LabBooking)
-    
-    # Apply filters if provided
-    if lab_id:
-        query = query.filter(LabBooking.lab_id == lab_id)
-    if user_id:
-        query = query.filter(LabBooking.user_id == user_id)
-    if status:
-        query = query.filter(LabBooking.status == status)
-    if date_from:
-        query = query.filter(LabBooking.date >= date_from)
-    if date_to:
-        query = query.filter(LabBooking.date <= date_to)
+    try:
+        query = db.query(LabBooking)
         
-    bookings = query.order_by(LabBooking.date.desc(), LabBooking.created_at.desc()).offset(skip).limit(limit).all()
-    return bookings
+        # Apply filters if provided
+        if lab_id:
+            query = query.filter(LabBooking.lab_id == lab_id)
+        if user_id:
+            query = query.filter(LabBooking.user_id == user_id)
+        if status:
+            query = query.filter(LabBooking.status == status)
+        if date_from:
+            query = query.filter(LabBooking.date >= date_from)
+        if date_to:
+            query = query.filter(LabBooking.date <= date_to)
+            
+        bookings = query.order_by(LabBooking.date.desc(), LabBooking.created_at.desc()).offset(skip).limit(limit).all()
+        result = []
+        
+        for booking in bookings:
+            try:
+                booking_response = {
+                    "id": booking.id,
+                    "lab_id": booking.lab_id,
+                    "user_id": booking.user_id,
+                    "user_name": booking.user_name,
+                    "user_role": booking.user_role,
+                    "time_slot_id": booking.time_slot_id,
+                    "date": booking.date,
+                    "purpose": booking.purpose,
+                    "status": booking.status,
+                    "created_at": booking.created_at,
+                    "updated_at": booking.updated_at
+                }
+                result.append(booking_response)
+            except Exception as ex:
+                print(f"Error processing booking {booking.id}: {ex}")
+        
+        return result
+    except Exception as e:
+        print(f"Error in get_lab_bookings: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/{booking_id}", response_model=LabBookingResponse)
 def get_lab_booking(booking_id: int, db: Session = Depends(get_db)):
